@@ -80,8 +80,8 @@
 [[projects]]
   name = "github.com/json-iterator/go"
   packages = ["."]
-  revision = "e7c7f3b33712573affdcc7a107218e7926b9a05b"
-  version = "1.0.6"
+  revision = "0ac74bba4a81211b28e32ef260c0f16ae41f1377"
+  version = "1.1.1"
 
 [[projects]]
   name = "github.com/juju/ratelimit"
@@ -108,10 +108,19 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/v2pro/plz"
+  packages = [
+    "concurrent",
+    "reflect2"
+  ]
+  revision = "10fc95fad3224a032229e59f6e7023137d82b526"
+  version = "0.9.1"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "432090b8f568c018896cd8a0fb0345872bbac6ce"
+  revision = "8c653846df49742c4c85ec37e5d9f8d3ba657895"
 
 [[projects]]
   branch = "master"
@@ -131,10 +140,9 @@
     "unix",
     "windows"
   ]
-  revision = "37707fdb30a5b38865cfb95e5aab41707daec7fd"
+  revision = "f6cff0780e542efa0c8e864dc8fa522808f6a598"
 
 [[projects]]
-  branch = "master"
   name = "golang.org/x/text"
   packages = [
     "collate",
@@ -152,7 +160,8 @@
     "unicode/norm",
     "unicode/rangetable"
   ]
-  revision = "9e2b64d659da1afe07ce1c9c1dfefc09d188f21e"
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
 
 [[projects]]
   name = "gopkg.in/inf.v0"
@@ -161,10 +170,10 @@
   version = "v0.9.0"
 
 [[projects]]
-  branch = "v2"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
+  revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
+  version = "v2.1.1"
 
 [[projects]]
   branch = "master"
@@ -199,7 +208,7 @@
     "storage/v1alpha1",
     "storage/v1beta1"
   ]
-  revision = "b378c47b2dcba7f5c3ef97d8a5a0b3821ec6a001"
+  revision = "0406a944760b00b7a75b559f642673d7bb07b48a"
 
 [[projects]]
   branch = "master"
@@ -241,7 +250,7 @@
     "pkg/watch",
     "third_party/forked/golang/reflect"
   ]
-  revision = "cced8e64b6ca92a8b6afcbfea3353ca016694a45"
+  revision = "bf4c8d907ba9e7fee82a73bad5346aeebff5d06e"
 
 [[projects]]
   name = "k8s.io/client-go"
@@ -291,7 +300,8 @@
     "util/cert",
     "util/flowcontrol",
     "util/homedir",
-    "util/integer"
+    "util/integer",
+    "util/retry"
   ]
   revision = "78700dec6369ba22221b72770783300f143df150"
   version = "v6.0.0"
@@ -299,6 +309,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "50e1f0aba3af499d9e1c9efc676514eaeec35094dcc28d3f540ee32548486731"
+  inputs-digest = "a03a37b49a5b947a6f5420bb94b62bd5c5ff8d232270f15a4c1e61a1ec9672f5"
   solver-name = "gps-cdcl"
   solver-version = 1

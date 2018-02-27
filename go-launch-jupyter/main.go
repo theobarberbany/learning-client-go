@@ -14,6 +14,7 @@ import (
         metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+        "k8s.io/client-go/util/retry"
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
@@ -61,23 +62,27 @@ func main() {
         if err != nil {
                 panic(err.Error())
         }
-        //set labels for pod
-        pod.ObjectMeta.SetLabels(map[string]string{
-                "app": "jupyter",
+        //Get latest version of the pod
+        retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+                //should avoid conflicts
+                //exponential backoff
+                result, getErr := clientset.CoreV1().Pods(namespace).Get(pod, metav1.GetOptions{})
+                //Panic if getting pod fails
+                if getErr != nil {
+                        panic(fmt.Errorf("Failed to get latest version of deployment: %v", getErr))
+                }
+                //set labels for pod
+                result.ObjectMeta.SetLabels(map[string]string{
+                        "app": "jupyter",
+                })
+                //update the pod
+                _, updateErr := clientset.CoreV1().Pods(namespace).Update(pod)
+                return updateErr
         })
-        //what I want to do:
-        //pod, err := clientset.CoreV1().Pods(namespace).Update(pod)
-        //if err != nil {
-                //panic(err.Error())
-        //}
-        //update the pod
-        //for debug
-        pod_u, err := clientset.CoreV1().Pods(namespace).Update(pod)
-        if err != nil {
-                fmt.Println(pod.Status)
-                fmt.Println(pod_u.Status)
-                panic(err.Error())
+        if retryErr != nil {
+                panic(fmt.Errorf("Update failed: %v", retryErr))
         }
+        fmt.Println("Updated Labels on pod")
         //add a service to expose the pod
         //svc, err := clientset.CoreV1().Services(namespace).Create(&v1.Service{
                 //ObjectMeta: metav1.ObjectMeta{
