@@ -52,7 +52,9 @@ func main() {
                                         Name: "jupyter",
                                         Image: "skippbox/jupyter:0.0.3",
                                         Ports: []v1.ContainerPort{
-                                                v1.ContainerPort{
+                                                {
+                                                        Name: "http",
+                                                        Protocol: v1.ProtocolTCP,
                                                         ContainerPort :8888,
                                                 },
                                         },
@@ -93,13 +95,17 @@ func main() {
         svc, err := clientset.CoreV1().Services(namespace).Create(&v1.Service{
                 ObjectMeta: metav1.ObjectMeta{
                         Name: "jupyter-svc",
+                        Labels: map[string]string{
+                                "app": "jupyter",
+                        },
                 },
                 Spec: v1.ServiceSpec{
                         Type: v1.ServiceTypeLoadBalancer,
                         Selector: pod.Labels,
                         Ports: []v1.ServicePort{
-                                v1.ServicePort{
+                                        {
                                         Port: 80,
+                                        Name: "http",
                                         TargetPort: intstr.IntOrString{
                                                 IntVal: 8888,
                                         },
