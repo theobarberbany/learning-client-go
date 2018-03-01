@@ -1,6 +1,7 @@
 // Modified, using code from 
 //https://github.com/kubernetes/client-go/tree/master/examples/out-of-cluster-client-configuration
-//as a base
+//as a base, and attempting to recreate running 'kubectl create -f' on 
+//https://raw.githubusercontent.com/kubernetes-incubator/client-python/master/examples/notebooks/docker/jupyter.yml
 package main
 
 import (
