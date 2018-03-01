@@ -47,10 +47,26 @@ func main() {
                         Name: pod_name,
                 },
                 Spec: v1.PodSpec{
+                        Volumes: []v1.Volume{
+                                {
+                                        Name: "notebook-volume",
+                                        VolumeSource: v1.VolumeSource{
+                                                GitRepo: &v1.GitRepoVolumeSource{
+                                                        Repository: "https://github.com/kubernetes-client/python.git",
+                                                },
+                                        },
+                                },
+                        },
                         Containers: []v1.Container {
                                 {
                                         Name: "jupyter",
                                         Image: "skippbox/jupyter:0.0.3",
+                                        VolumeMounts: []v1.VolumeMount{
+                                                {
+                                                        Name: "notebook-volume",
+                                                        MountPath: "/root",
+                                                },
+                                        },
                                         Ports: []v1.ContainerPort{
                                                 {
                                                         Name: "http",
