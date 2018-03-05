@@ -1,0 +1,343 @@
+# The format of this file is YAML
+#
+# wr will load its configuration settings from one or more files named
+# .wr_config[.production|.development].yml found in these directories, in
+# order of precedence:
+# 1) The current directory
+# 2) Your home directory
+# 3) The directory pointed to by the environment variable $WR_CONFIG_DIR
+#
+# .wr_config.yml files are always read, and can be used to define settings
+# common to both production and development deployments.
+# .wr_config.production.yml files are only read in a production context:
+# either a --deployment production option has been passed to the wr
+# executable, or the environment variable $WR_DEPLOYMENT has been set to
+# 'production'.
+# A similar story applies for .wr_config.development.yml files, which are
+# used when things are set to 'development'.
+# The default deployment is production (unless you're in the git repository for
+# wr, in which case it is development).
+#
+# If a setting is found in none of the files read, then an environment variable
+# is checked: WR_<setting name in caps>. Eg. to define the managerscheduler
+# option you might do:
+# export WR_MANAGERSCHEDULER="lsf"
+#
+# Note that all worker nodes need to be able to see your desired set of config
+# files, so either define them in environment variables or put the config files
+# on a disc that is mounted and shared across all your compute nodes.
+
+
+# managerport: What port should the wr manager listen on?
+# This defaults to "xxxxx", where xxxxx is 1021 + 4*[your user id] + 0 if
+# production or + 2 if development. Note, this is a string (quoted). The
+# calculated default should hopefully give you port numbers that no other
+# software or other user of wr on your machine is using.
+# NB: It is very important to have different settings for your production
+# manager and your development manager. If you have multiple people running
+# wr on the same machine, and you explicitly set this instead of relying on
+# the default, each individual person should have their own unique manager_port
+# specified in their personal ~/.wr_config.development.yml and
+# ~/.wr_config.production.yml files.
+#
+# Before being able to use wr you must start the manager by running 'wr
+# manager'. It will start listening on the specified port on your local host.
+# Your other invocations of 'wr' also use this option to know what port to
+# connect to, but they'll only succeed if you run them from the same host you
+# started the manager on, or if you have set the manager_host option to the
+# host you started the manager on.
+# wr commands that are spawned by the manager itself are given the real
+# ip address of the host the manager is running on, so these commands do not
+# need manager_host to be set.
+# For multi-machine systems it is required that all hosts that could end up
+# running a wr command be able to do tcp communication with the host you
+# launch the manager on.
+#managerport: "11301"
+
+# managerweb: What port should the wr manager serve its web interface on?
+# This defaults to "xxxxx", where xxxxx is 1021 + 4*[your user id] + 1 if
+# production or + 3 if development. Note, this is a string (quoted). The
+# calculated default should hopefully give you port numbers that no other
+# software or other user of wr on your machine is using.
+# NB: This must be different to the manager_port, and to anyone else's port
+# choice on the same machine.
+#managerweb: "11302"
+
+# managerhost: What host was 'wr manager' started on?
+# This is optional and defaults to "localhost".
+#
+# This option determines where wr commands (other than the manager command)
+# try and connect to your wr manager. You only need to set this if you plan
+# on running wr commands yourself on a host that is different to the one you
+# you plan to start the wr manager on.
+# For more details, see the notes for the manager_port option above.
+managerhost: "localhost"
+
+# managerdir: Where should the wr manager store its working files?
+# This defaults to a directory prefixed with .wr in your home directory.
+#
+# The final directory name will be suffixed with "_[deployment]", eg. by default
+# when developing the directory will be ~/.wr_development. For this reason
+# you do not have to set this differently in your production and development
+# config files. The other file-name-based configuration options like
+# 'manager_pid_file' and 'manager_db_file' also do not need to be altered from
+# their defaults.
+#
+# The files stored in here are, by default, the manager's pid file, log file and
+# database related files. Files needed by `wr cloud deploy` are also stored
+# here.
+managerdir: "~/.wr"
+
+# managerpidfile: Where should wr manager store its pid file?
+# This defaults to a file named "pid" in managerdir.
+#
+# You can set this to an absolute path to ignore managerdir; for example if
+# you have the root permissions to set things up, you may prefer to set this to
+# /var/run/wr/pid
+managerpidfile: "pid"
+
+# managerlogfile: Where should wr manager store its log file?
+# This defaults to a file named "log" in managerdir.
+#
+# You can set this to an absolute path to ignore managerdir; for example if
+# you have the root permissions to set things up, you may prefer to set this to
+# /var/log/wr/pid
+managerlogfile: "log"
+
+# managerdbfile: Where should wr manager store its database file?
+# This defaults to a file named "db" in managerdir.
+#
+# You can set this to an absolute path to ignore managerdir.  If doing this, be
+# certain to set a different value in your production and development config
+# files.
+#
+# Note that you may need quite a lot of disk space for this, especially after
+# you've run millions of jobs, since a permanent record of everything you've
+# done is held in this file.
+#
+# WARNING: the database file will eventually contain your environment variables,
+# so you should secure this file and not make it public if you have passwords
+# set as the values of environment variables.
+managerdbfile: "db"
+
+# managerdbbkfile: Where should wr manager back up its database file?
+# This defaults to a file named "db_bk" in managerdir.
+#
+# You can set this to an absolute path to ignore managerdir (and ideally you
+# should set this to a path on a different disk or better yet a different
+# machine).
+#
+# Database backups are not carried out in development, so this is ignored in
+# development config files.
+#
+# For cloud deployments it is recommended to back up to S3. Specify an S3
+# location like: s3://mybucket/subpath/my_wr_db.backup
+# If your credentials are specified in a non-default profile you can instead say
+# something like: s3://profile_name@mybucket/subpath/my_wr_db.backup
+# Credential specification is as per `wr mount -h` (basically, have an ~/.s3cfg
+# file). Ensure that only you have read permission for the S3 location you
+# specify.
+#
+# Note that you may need quite a lot of disk space for this, as when a
+# new backup starts it is written to a temp file in the directory you specify
+# before replacing the file at the path you specified, so peaking to 2x disk
+# usage.
+managerdbbkfile: "db_bk"
+
+# managerumask: What umask should be used when wr manager creates files?
+# This defaults to 007 (user+group read+writable, no access to others).
+# Note, this is a number (no quotes).
+#
+# Here are examples of alternative umasks:
+# 022 = world readable, user read+writeable
+# 002 = world readable, user+group read+writeable
+managerumask: 007
+
+# managerscheduler: What job scheduler should be used to run 'wr runner'?
+# This defaults to "local" and is overridden by the --scheduler option to
+# 'wr manager start'.
+#
+# "local" means run everything on the local machine.
+# "lsf" means submit to LSF using 'bsub'.
+# "openstack" means spawn additional openstack servers in the current network
+# as necessary to run your commands, and destroy them afterwards. NB: this only
+# works if you are starting the manager on an OpenStack server!
+managerscheduler: "local"
+
+# runnerexecshell: What shell should be used to run commands in?
+# This defaults to bash, regardless of your current shell.
+#
+# Avoid the use of dash on Ubuntu, which is its default sh; bash is STRONGLY
+# recommended.
+runnerexecshell: "bash"
+
+# cloudflavor: What server flavors can be automatically picked?
+# Without being set, any available flavor can be picked. It is overridden by
+# the --flavor option to `wr cloud deploy` and the --cloud_flavor option of
+# `wr manager start`.
+# Note, this is regular expression in a string, and could be something like
+# "^m.*$" to only pick flavors that have names beginning with the letter 'm'.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# wr will pick the cheapest (smallest number of cores and RAM) server flavor
+# available to run a command, that is capable of running the command (according
+# to wr's knowledge of how much RAM and how many cores it needs to run).
+# cloudflavor: ""
+
+# cloudkeepalive: How long should idle spawned server stay alive?
+# This defaults to 120. It is overridden by the --keepalive option to
+# `wr cloud deploy` and the --cloud_keepalive option of `wr manager start`.
+# Note, this is a number (no quotes) of seconds.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# The benefit of keeping idle servers alive is that if you subsequently add jobs
+# that can run on an idle server, that server will get used and you won't have
+# wait for a new server to be spawned. After cloudkeepalive seconds, idle
+# servers are terminated.
+#
+# A value of 0 turns off the termination of idle servers (not recommended).
+cloudkeepalive: 120
+
+# cloudservers: How many additional cloud servers can be spawned?
+# This defaults to -1. It is overridden by the --max_servers option to
+# `wr cloud deploy` and the --cloud_servers option of `wr manager start`.
+# Note, this is a number (no quotes).
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# -1 means there is no limit (other than your quota in the cloud) to the number
+# of servers that wr will spawn in order to run your commands. Wr will scale up
+# and down the number of servers as needed.
+# 0 means don't spawn any servers; jobs will only run on the same server that
+# the manager is running on (if possible).
+#
+# If this cloudservers value gets used as the default of `wr cloud deploy`, it
+# is incremented by 1, since deploy's --max_servers option has a slightly
+# different meaning to start's --cloud_servers option, as it includes the
+# initial server that gets created to run `wr manager`.
+cloudservers: -1
+
+# cloudcidr: What should be the CIDR of the created subnet?
+# This defaults to "192.168.0.0/18". It is overridden by the --network_cidr
+# option to `wr cloud deploy` and the --cloud_cidr option of `wr manager start`.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# wr creates a network and subnet in the cloud in which any spawned servers are
+# created. The CIDR determines the possible IP addresses the spawned servers can
+# have. For example, with the default CIDR you will be able to spawn 6381
+# servers with IPs starting from 192.168.0.1 and going up to 192.168.63.254.
+cloudcidr: "192.168.0.0/18"
+
+# cloudgateway: What should be the gateway IP of the created subnet?
+# This defaults to "192.168.0.1". It is overridden by the --network_gateway_ip
+# option to `wr cloud deploy` and the --cloud_gateway_ip option of
+# `wr manager start`.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# wr creates a network and subnet in the cloud in which any spawned servers are
+# created. The subnet needs a gateway, and you should normally set its IP to the
+# start of the range of your cloudcidr.
+cloudgateway: "192.168.0.1"
+
+# clouddns: What DNS name servers should be configured on spawned servers?
+# This defaults to "8.8.4.4,8.8.8.8". It is overridden by the --network_dns
+# option to `wr cloud deploy` and the --cloud_dns option of `wr manager start`.
+# Note, this is a comma separated string of 1 or more name servers.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# When wr spawns a server to run commands, the server will usually only function
+# correctly if it has DNS name servers configured on it (even if your command
+# does not access the internet). The default is to use Google's free name
+# servers.
+clouddns: "8.8.4.4,8.8.8.8"
+
+# cloudos: What OS image should be used for spawned servers?
+# This defaults to "Ubuntu Xenial". It is overridden by the --os option to
+# `wr cloud deploy` and the --cloud_os option of `wr manager start`.
+# Note, this is the string prefix of an image that is available to you.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+cloudos: "Ubuntu Xenial"
+
+# clouduser: What username should be used to log in to cloudos images?
+# This defaults to "ubuntu". It is overridden by the --username option to
+# `wr cloud deploy` and the --cloud_username option of `wr manager start`.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# The OS image you chose via cloudos will likely only have a single special
+# user that can log in to it. You must specify that username here.
+clouduser: "ubuntu"
+
+# cloudram: How much RAM must a server have to run cloudos?
+# This defaults to 2048. It is overridden by the --os_ram option to
+# `wr cloud deploy` and the --cloud_ram option of `wr manager start`.
+# Note, this is a number (no quotes) in MB.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# This option affects how picking of flavors for new servers works. If a command
+# only needs 100MB to run, but the cloudram is set to 2048, then only server
+# flavors with at least 2GB of ram will get chosen.
+cloudram: 2048
+
+# clouddisk: What should the minimum disk space of spawned servers be?
+# This defaults to 1. It is overridden by the --os_disk option to
+# `wr cloud deploy` and the --cloud_disk option of `wr manager start`.
+# Note, this is a number (no quotes) in GB.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# The cheapest server flavor will be chosen for your commands as normal (see
+# cloudflavor for details). If that flavor has disk space greater than or
+# equal to clouddisk, nothing special happens (and you'll get a server with
+# likely fast disk speeds). If the flavor has less disk space than clouddisk,
+# a temporary volume will be created of clouddisk size and associated with the
+# new server. The volume will get deleted when the server is deleted.
+clouddisk: 1
+
+# cloudscript: What script should run on newly spawned servers?
+# If unset, nothing is run. It is overridden by the --script option to
+# `wr cloud deploy` and the --cloud_script option of `wr manager start`.
+# Note, this is the absolute path to a local bash script.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# When wr spawns a new server, cloudscript will be run on it when the server
+# first boots up.
+# cloudscript: ""
+
+# cloudconfigfiles: What config files should be copied to newly spawned servers?
+# This defaults to "~/.s3cfg,~/.aws/credentials,~/.aws/config". It is overridden
+# by the --config_files option to `wr cloud deploy` and the --cloud_config_files
+# option of `wr manager start`. Note, this is a comma separated string of paths.
+#
+# This option is only relevant when you are using a cloud scheduler such as
+# OpenStack.
+#
+# If you specify absolute paths, the file will be copied to the same absolute
+# path on spawned cloud servers. For files in your home directory which you want
+# to be placed in the home directory of the cloud servers, use the ~/ prefix.
+#
+# Examples of files you might need to copy over are your s3 configuration files.
+# You'll need these on your cloud servers if you plan on `wr add`ing any
+# commands with --mounts.
+#
+# If you specify files that don't exist locally, they are silently ignored.
+cloudconfigfiles: "~/.s3cfg,~/.aws/credentials,~/.aws/config"

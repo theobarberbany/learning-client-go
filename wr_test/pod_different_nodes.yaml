@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-master 
+  labels:
+    env: test
+spec:
+  containers:
+  - name: ubuntu 
+    image: ubuntu 
+    imagePullPolicy: IfNotPresent
+    command: ["tail"]
+    args: ["-f", "/dev/null"]
+  nodeSelector:
+    node: master
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-node1 
+  labels:
+    env: test
+spec:
+  containers:
+  - name: ubuntu 
+    image: ubuntu 
+    imagePullPolicy: IfNotPresent
+    command: ["tail"]
+    args: ["-f", "/dev/null"]
+  nodeSelector:
+    node: node1 
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-node2 
+  labels:
+    env: test
+spec:
+  containers:
+  - name: ubuntu 
+    image: ubuntu
+    imagePullPolicy: IfNotPresent
+    command: ["tail"]
+    args: ["-f", "/dev/null"]
+  nodeSelector:
+    node: node2
