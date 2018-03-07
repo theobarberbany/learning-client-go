@@ -1,20 +1,3 @@
-/*
-Copyright 2017 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-// Note: the example only works with the code within the same release/branch.
 package main
 
 import (
@@ -30,12 +13,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"k8s.io/client-go/util/retry"
+	//	"k8s.io/client-go/util/retry"
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 func main() {
+	//Obtain cluster authentication information from users home directory, or fall back to user input.
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -52,9 +36,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+	//Create clientset that is authenticated against the given cluster. Use default namsespace.
 	deploymentsClient := clientset.AppsV1beta1().Deployments(apiv1.NamespaceDefault)
 
+	//Create new wr deployment
 	deployment := &appsv1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "wr-deployment",
@@ -63,27 +48,38 @@ func main() {
 			Replicas: int32Ptr(1),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
+					Name: "wr-manager",
 					Labels: map[string]string{
 						"app": "wr",
 					},
 				},
-				Containers: []v1.Container{
-					{
-						Name:  "ubuntu",
-						Image: "ubuntu:artful",
-						Ports: []v1.ContainerPort{
-							{
-								Name:          "wr-manager",
-								Protocol:      v1.ProtocolTCP,
-								ContainerPort: 1021,
+				Spec: apiv1.PodSpec{
+					Containers: []apiv1.Container{
+						{
+							Name:  "ubuntu",
+							Image: "ubuntu:17.10",
+							Ports: []apiv1.ContainerPort{
+								{
+									Name:          "wr-manager",
+									Protocol:      apiv1.ProtocolTCP,
+									ContainerPort: 1021,
+								},
+								{
+									Name:          "wr-web",
+									Protocol:      apiv1.ProtocolTCP,
+									ContainerPort: 1022,
+								},
 							},
-							{
-								Name:          "wr-web-interface",
-								Protocol:      v1.ProtocolTCP,
-								ContainerPort: 1022,
+							Command: []string{
+								"tail",
+							},
+							Args: []string{
+								"-f",
+								"/dev/null",
 							},
 						},
 					},
+					//Hostname: "wr-manager",
 				},
 			},
 		},
@@ -101,7 +97,7 @@ func main() {
 	prompt()
 	fmt.Println("Deleting deployment...")
 	deletePolicy := metav1.DeletePropagationForeground
-	if err := deploymentsClient.Delete("demo-deployment", &metav1.DeleteOptions{
+	if err := deploymentsClient.Delete("wr-deployment", &metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
 	}); err != nil {
 		panic(err)
