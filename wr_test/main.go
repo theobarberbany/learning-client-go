@@ -4,19 +4,51 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	//"k8s.io/client-go/tools/remotecommand"
+	"github.com/docker/docker/pkg/namesgenerator"
 	"k8s.io/client-go/util/homedir"
-	//	"k8s.io/client-go/util/retry"
+	"k8s.io/client-go/util/retry"
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
+
+type Request struct {
+	masterURL      string
+	kubeconfigpath string
+	Pod            string
+	Container      string
+	Namespace      string
+	Command        string
+	Arg            string
+}
+
+type Writer struct {
+	Str []string
+}
+
+func (w *Writer) Write(p []byte) (n int, err error) {
+	str := string(p)
+	if len(str) > 0 {
+		w.Str = append(w.Str, str)
+	}
+	return len(str), nil
+}
+
+func newStringReader(ss []string) io.Reader {
+	formattedString := strings.Join(ss, "\n")
+	reader := strings.NewReader(formattedString)
+	return reader
+}
 
 func main() {
 	//Obtain cluster authentication information from users home directory, or fall back to user input.
@@ -36,8 +68,27 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	//Create clientset that is authenticated against the given cluster. Use default namsespace.
-	deploymentsClient := clientset.AppsV1beta1().Deployments(apiv1.NamespaceDefault)
+	//Create a unique namespace
+	namespaceClient := clientset.CoreV1().Namespaces()
+	newNamespace := strings.Replace(namesgenerator.GetRandomName(0), "_", "-", -1) + "-wr"
+	//Retry if namespace taken
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, nsErr := namespaceClient.Create(&apiv1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: newNamespace,
+			},
+		})
+		if nsErr != nil {
+			fmt.Printf("Failed to create new namespace, %s. Trying again. Error: %v", newNamespace, err)
+			newNamespace = strings.Replace(namesgenerator.GetRandomName(0), "_", "-", -1) + "-wr"
+		}
+		return nsErr
+	})
+	if retryErr != nil {
+		panic(fmt.Errorf("Update failed: %v", retryErr))
+	}
+	//Create clientset for deployments that is authenticated against the given cluster. Use default namsespace.
+	deploymentsClient := clientset.AppsV1beta1().Deployments(newNamespace)
 
 	//Create new wr deployment
 	deployment := &appsv1beta1.Deployment{
@@ -50,7 +101,7 @@ func main() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "wr-manager",
 					Labels: map[string]string{
-						"app": "wr",
+						"app": "wr-manager",
 					},
 				},
 				Spec: apiv1.PodSpec{
@@ -79,7 +130,7 @@ func main() {
 							},
 						},
 					},
-					//Hostname: "wr-manager",
+					Hostname: "wr-manager",
 				},
 			},
 		},
@@ -93,16 +144,18 @@ func main() {
 	}
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-	// Delete Deployment
-	prompt()
-	fmt.Println("Deleting deployment...")
-	deletePolicy := metav1.DeletePropagationForeground
-	if err := deploymentsClient.Delete("wr-deployment", &metav1.DeleteOptions{
-		PropagationPolicy: &deletePolicy,
-	}); err != nil {
-		panic(err)
-	}
-	fmt.Println("Deleted deployment.")
+	//Copy WR to pod
+	//pods, err = clientset.CoreV1().Pods(apiv1.NamespaceDefault)
+	//Delete Deployment
+	//prompt()
+	//fmt.Println("Deleting deployment...")
+	//deletePolicy := metav1.DeletePropagationForeground
+	//if err := deploymentsClient.Delete("wr-deployment", &metav1.DeleteOptions{
+	//PropagationPolicy: &deletePolicy,
+	//}); err != nil {
+	//panic(err)
+	//}
+	//fmt.Println("Deleted deployment.")
 }
 
 func prompt() {
