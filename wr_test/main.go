@@ -26,13 +26,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
-type Request struct {
-	Pod       string
-	Container string
-	Command   string
-	Arg       string
-}
-
 type Writer struct {
 	Str []string
 }
@@ -198,7 +191,7 @@ func main() {
 	}
 	fmt.Println("Created SPDYExecutor")
 
-	stdIn := newStringReader([]string{"echo 'hello, world!' > hw.txt"})
+	stdIn := newStringReader([]string{"echo 'hello, world!' > hw.txt", "touch test2.txt"})
 	stdOut := new(Writer)
 	stdErr := new(Writer)
 
@@ -216,17 +209,6 @@ func main() {
 		panic(fmt.Errorf("Error executing remote command: %v", err))
 	}
 
-	//fmt.Println(podList)
-	//Delete Deployment
-	//prompt()
-	//fmt.Println("Deleting deployment...")
-	//deletePolicy := metav1.DeletePropagationForeground
-	//if err := deploymentsClient.Delete("wr-deployment", &metav1.DeleteOptions{
-	//PropagationPolicy: &deletePolicy,
-	//}); err != nil {
-	//panic(err)
-	//}
-	//fmt.Println("Deleted deployment.")
 }
 
 func prompt() {
