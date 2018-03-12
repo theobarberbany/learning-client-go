@@ -2,20 +2,24 @@ package main
 
 import (
 	"bufio"
+	//"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/docker/docker/pkg/namesgenerator"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
-	//"k8s.io/client-go/tools/remotecommand"
-	"github.com/docker/docker/pkg/namesgenerator"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/util/homedir"
 	"k8s.io/client-go/util/retry"
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
@@ -23,13 +27,10 @@ import (
 )
 
 type Request struct {
-	masterURL      string
-	kubeconfigpath string
-	Pod            string
-	Container      string
-	Namespace      string
-	Command        string
-	Arg            string
+	Pod       string
+	Container string
+	Command   string
+	Arg       string
 }
 
 type Writer struct {
@@ -64,6 +65,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	//Create authenticated clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err)
@@ -85,15 +87,16 @@ func main() {
 		return nsErr
 	})
 	if retryErr != nil {
-		panic(fmt.Errorf("Update failed: %v", retryErr))
+		panic(fmt.Errorf("Creatioin of namespace failed: %v", retryErr))
 	}
+
 	//Create clientset for deployments that is authenticated against the given cluster. Use default namsespace.
 	deploymentsClient := clientset.AppsV1beta1().Deployments(newNamespace)
 
 	//Create new wr deployment
 	deployment := &appsv1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "wr-deployment",
+			Name: "wr-manager",
 		},
 		Spec: appsv1beta1.DeploymentSpec{
 			Replicas: int32Ptr(1),
@@ -142,10 +145,78 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
+	fmt.Printf("Created deployment %q in namespace %v.\n", result.GetObjectMeta().GetName(), newNamespace)
 
-	//Copy WR to pod
-	//pods, err = clientset.CoreV1().Pods(apiv1.NamespaceDefault)
+	//Copy WR to pod, selecting by label.
+	//Wait for the pod to be created, then return it
+	var podList *apiv1.PodList
+	getPodErr := wait.ExponentialBackoff(retry.DefaultRetry, func() (done bool, err error) {
+		var getErr error
+		podList, getErr = clientset.CoreV1().Pods(newNamespace).List(metav1.ListOptions{
+			LabelSelector: "app=wr-manager",
+		})
+		switch {
+		case getErr != nil:
+			panic(fmt.Errorf("Failed to list pods in namespace %v \n", newNamespace))
+		case len(podList.Items) == 0:
+			return false, nil
+		case len(podList.Items) > 0:
+			return true, nil
+		default:
+			return false, err
+		}
+	})
+	if getPodErr != nil {
+		panic(fmt.Errorf("Failed to list pods, error: %v\n", getPodErr))
+
+	}
+	//Extract the pod name
+	fmt.Println("Sleeping for 15s")
+	time.Sleep(15 * time.Second)
+	fmt.Println("Woken up")
+	pod := podList.Items[0]
+	fmt.Printf("Container for pod is %v\n", pod.Spec.Containers[0].Name)
+	fmt.Printf("Pod has name %v, in namespace %v\n", pod.ObjectMeta.Name, pod.ObjectMeta.Namespace)
+	command := []string{"/bin/bash"}
+	execRequest := clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(pod.ObjectMeta.Name).
+		Namespace(pod.ObjectMeta.Namespace).
+		SubResource("exec")
+	execRequest.VersionedParams(&apiv1.PodExecOptions{
+		Container: pod.Spec.Containers[0].Name,
+		Command:   command,
+		Stdin:     true,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
+	}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", execRequest.URL())
+	if err != nil {
+		panic(fmt.Errorf("Error creating SPDYExecutor: %v", err))
+	}
+	fmt.Println("Created SPDYExecutor")
+
+	stdIn := newStringReader([]string{"echo 'hello, world!' > hw.txt"})
+	stdOut := new(Writer)
+	stdErr := new(Writer)
+
+	fmt.Println("Executing remotecommand")
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdin:  stdIn,
+		Stdout: stdOut,
+		Stderr: stdErr,
+		Tty:    false,
+	})
+	if err != nil {
+		fmt.Printf("Stdin: %v\n", stdIn)
+		fmt.Printf("StdOut: %v\n", stdOut)
+		fmt.Printf("StdErr: %v\n", stdErr)
+		panic(fmt.Errorf("Error executing remote command: %v", err))
+	}
+
+	//fmt.Println(podList)
 	//Delete Deployment
 	//prompt()
 	//fmt.Println("Deleting deployment...")
