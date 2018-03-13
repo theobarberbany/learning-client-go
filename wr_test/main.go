@@ -173,14 +173,14 @@ func main() {
 
 	//Read binary
 	reader, writer := io.Pipe()
-
+	//Read file from disk
 	dat, err := ioutil.ReadFile(dir + "/wr")
 	if err != nil {
 		panic(fmt.Errorf("Failed to read binary: %v", err))
 	}
-	go func() {
+	go func() { //avoid deadlock
 		defer writer.Close()
-		writer.Write(dat)
+		writer.Write(dat) //Write data to pipe
 	}()
 
 	//Copy the wr binary to the running pod
