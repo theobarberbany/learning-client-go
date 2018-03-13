@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -163,14 +164,36 @@ func main() {
 		panic(fmt.Errorf("Failed to list pods, error: %v\n", getPodErr))
 
 	}
-	//Extract the pod name
-	fmt.Println("Sleeping for 15s")
+
+	//Get the current working directory.
+	dir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	//Read binary
+	reader, writer := io.Pipe()
+
+	dat, err := ioutil.ReadFile(dir + "/wr")
+	if err != nil {
+		panic(fmt.Errorf("Failed to read binary: %v", err))
+	}
+	go func() {
+		defer writer.Close()
+		writer.Write(dat)
+	}()
+
+	//Copy the wr binary to the running pod
+	fmt.Println("Sleeping for 15s") // wait for container to be running
 	time.Sleep(15 * time.Second)
 	fmt.Println("Woken up")
 	pod := podList.Items[0]
 	fmt.Printf("Container for pod is %v\n", pod.Spec.Containers[0].Name)
 	fmt.Printf("Pod has name %v, in namespace %v\n", pod.ObjectMeta.Name, pod.ObjectMeta.Namespace)
-	command := []string{"/bin/bash"}
+	command := []string{"/bin/dd", "of=/tmp/wr", "bs=1024"} //Open a bash terminal on the pod
+
+	//Make a request to the APIServer for an 'exec'.
+	//Open Stdin, Stdout and Stderr for use by the client
 	execRequest := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(pod.ObjectMeta.Name).
@@ -180,35 +203,39 @@ func main() {
 		Container: pod.Spec.Containers[0].Name,
 		Command:   command,
 		Stdin:     true,
-		Stdout:    true,
+		Stdout:    false,
 		Stderr:    true,
 		TTY:       false,
 	}, scheme.ParameterCodec)
 
+	//Create an executor to send commands / recieve output.
+	//SPDY Allows multiplexed bidirectional streams to and from  the pod
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", execRequest.URL())
 	if err != nil {
 		panic(fmt.Errorf("Error creating SPDYExecutor: %v", err))
 	}
 	fmt.Println("Created SPDYExecutor")
 
-	stdIn := newStringReader([]string{"echo 'hello, world!' > hw.txt", "touch test2.txt"})
+	//stdIn := newStringReader([]string{input})
+	stdIn := reader
 	stdOut := new(Writer)
 	stdErr := new(Writer)
 
+	//Execute the command, with Std(in,out,err) pointing to the
+	//above readers and writers
 	fmt.Println("Executing remotecommand")
 	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  stdIn,
-		Stdout: stdOut,
+		Stdin: stdIn,
+		//Stdout: stdOut,
 		Stderr: stdErr,
 		Tty:    false,
 	})
 	if err != nil {
-		fmt.Printf("Stdin: %v\n", stdIn)
+		//fmt.Printf("Stdin: %v\n", stdIn)
 		fmt.Printf("StdOut: %v\n", stdOut)
 		fmt.Printf("StdErr: %v\n", stdErr)
 		panic(fmt.Errorf("Error executing remote command: %v", err))
 	}
-
 }
 
 func prompt() {
