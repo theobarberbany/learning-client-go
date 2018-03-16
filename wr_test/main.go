@@ -102,9 +102,17 @@ func main() {
 					},
 				},
 				Spec: apiv1.PodSpec{
+					Volumes: []apiv1.Volume{
+						{
+							Name: "wr-temp",
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+					},
 					Containers: []apiv1.Container{
 						{
-							Name:  "ubuntu",
+							Name:  "wr-manager",
 							Image: "ubuntu:17.10",
 							Ports: []apiv1.ContainerPort{
 								{
@@ -124,6 +132,27 @@ func main() {
 							Args: []string{
 								"-f",
 								"/dev/null",
+							},
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      "wr-temp",
+									MountPath: "/wr-tmp",
+								},
+							},
+						},
+					},
+					InitContainers: []apiv1.Container{
+						{
+							Name:      "init-container",
+							Image:     "ubuntu:17.10",
+							Command:   []string{"/bin/dd", "of=/wr-tmp/wr", "bs=1024"},
+							Stdin:     true,
+							StdinOnce: true,
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      "wr-temp",
+									MountPath: "/wr-tmp",
+								},
 							},
 						},
 					},
@@ -188,9 +217,10 @@ func main() {
 	time.Sleep(15 * time.Second)
 	fmt.Println("Woken up")
 	pod := podList.Items[0]
-	fmt.Printf("Container for pod is %v\n", pod.Spec.Containers[0].Name)
+	fmt.Printf("Container for pod is %v\n", pod.Spec.InitContainers[0].Name)
+	fmt.Println(pod.Spec.InitContainers)
 	fmt.Printf("Pod has name %v, in namespace %v\n", pod.ObjectMeta.Name, pod.ObjectMeta.Namespace)
-	command := []string{"/bin/dd", "of=/tmp/wr", "bs=1024"} //Open a bash terminal on the pod
+	//command := []string{"/bin/dd", "of=/wr-tmp/wr", "bs=1024"} //Open a bash terminal on the pod
 
 	//Make a request to the APIServer for an 'exec'.
 	//Open Stdin, Stdout and Stderr for use by the client
@@ -198,14 +228,14 @@ func main() {
 		Resource("pods").
 		Name(pod.ObjectMeta.Name).
 		Namespace(pod.ObjectMeta.Namespace).
-		SubResource("exec")
+		SubResource("attach")
 	execRequest.VersionedParams(&apiv1.PodExecOptions{
-		Container: pod.Spec.Containers[0].Name,
-		Command:   command,
-		Stdin:     true,
-		Stdout:    false,
-		Stderr:    true,
-		TTY:       false,
+		Container: pod.Spec.InitContainers[0].Name,
+		//Command:   command,
+		Stdin:  true,
+		Stdout: false,
+		Stderr: true,
+		TTY:    false,
 	}, scheme.ParameterCodec)
 
 	//Create an executor to send commands / recieve output.
