@@ -1,13 +1,14 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
 	//"errors"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -43,6 +44,44 @@ func newStringReader(ss []string) io.Reader {
 	formattedString := strings.Join(ss, "\n")
 	reader := strings.NewReader(formattedString)
 	return reader
+}
+
+func addFile(tw *tar.Writer, fpath string, dest string) error {
+	file, err := os.Open(fpath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if stat, err := file.Stat(); err == nil {
+		// now lets create the header as needed for this file within the tarball
+		header := new(tar.Header)
+		header.Name = dest + path.Base(fpath)
+		header.Size = stat.Size()
+		header.Mode = int64(stat.Mode())
+		header.ModTime = stat.ModTime()
+		// write the header to the tarball archive
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		// copy the file data to the tarball
+		if _, err := io.Copy(tw, file); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func makeTar(files []string, destDir string, writer io.Writer) error {
+	//Set up tar writer
+	tarWriter := tar.NewWriter(writer)
+	defer tarWriter.Close()
+	//Add each file to the tarball
+	for i := range files {
+		if err := addFile(tarWriter, path.Clean(files[i]), destDir); err != nil {
+			panic(err)
+		}
+	}
+	return nil
 }
 
 func main() {
@@ -127,11 +166,11 @@ func main() {
 								},
 							},
 							Command: []string{
-								"tail",
+								"/wr-tmp/wr",
 							},
 							Args: []string{
-								"-f",
-								"/dev/null",
+								"manager",
+								"start",
 							},
 							VolumeMounts: []apiv1.VolumeMount{
 								{
@@ -145,7 +184,7 @@ func main() {
 						{
 							Name:      "init-container",
 							Image:     "ubuntu:17.10",
-							Command:   []string{"/bin/dd", "of=/wr-tmp/wr", "bs=1024"},
+							Command:   []string{"/bin/tar", "-xf", "-"},
 							Stdin:     true,
 							StdinOnce: true,
 							VolumeMounts: []apiv1.VolumeMount{
@@ -200,16 +239,20 @@ func main() {
 		panic(err)
 	}
 
-	//Read binary
+	//Set up new pipe
 	reader, writer := io.Pipe()
 	//Read file from disk
-	dat, err := ioutil.ReadFile(dir + "/wr")
-	if err != nil {
-		panic(fmt.Errorf("Failed to read binary: %v", err))
-	}
-	go func() { //avoid deadlock
+	//dat, err := ioutil.ReadFile(dir + "/wr")
+	//if err != nil {
+	//panic(fmt.Errorf("Failed to read binary: %v", err))
+	//}
+
+	go func() { //avoid deadlock by using goroutine
 		defer writer.Close()
-		writer.Write(dat) //Write data to pipe
+		err := makeTar([]string{dir + "/wr"}, "/wr-tmp/", writer)
+		if err != nil {
+			panic(err)
+		}
 	}()
 
 	//Copy the wr binary to the running pod
@@ -220,10 +263,9 @@ func main() {
 	fmt.Printf("Container for pod is %v\n", pod.Spec.InitContainers[0].Name)
 	fmt.Println(pod.Spec.InitContainers)
 	fmt.Printf("Pod has name %v, in namespace %v\n", pod.ObjectMeta.Name, pod.ObjectMeta.Namespace)
-	//command := []string{"/bin/dd", "of=/wr-tmp/wr", "bs=1024"} //Open a bash terminal on the pod
 
-	//Make a request to the APIServer for an 'exec'.
-	//Open Stdin, Stdout and Stderr for use by the client
+	//Make a request to the APIServer for an 'attach'.
+	//Open Stdin and Stderr for use by the client
 	execRequest := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(pod.ObjectMeta.Name).
