@@ -171,6 +171,7 @@ func main() {
 							Args: []string{
 								"manager",
 								"start",
+								"-f",
 							},
 							VolumeMounts: []apiv1.VolumeMount{
 								{
