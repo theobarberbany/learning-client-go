@@ -40,12 +40,6 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 	return len(str), nil
 }
 
-func newStringReader(ss []string) io.Reader {
-	formattedString := strings.Join(ss, "\n")
-	reader := strings.NewReader(formattedString)
-	return reader
-}
-
 func addFile(tw *tar.Writer, fpath string, dest string) error {
 	file, err := os.Open(fpath)
 	if err != nil {
@@ -289,7 +283,6 @@ func main() {
 	}
 	fmt.Println("Created SPDYExecutor")
 
-	//stdIn := newStringReader([]string{input})
 	stdIn := reader
 	stdOut := new(Writer)
 	stdErr := new(Writer)
