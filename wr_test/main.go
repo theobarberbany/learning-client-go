@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -92,13 +93,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(reflect.TypeOf(config))
 	//Create authenticated clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(reflect.TypeOf(clientset))
 	//Create a unique namespace
 	namespaceClient := clientset.CoreV1().Namespaces()
+	fmt.Println(reflect.TypeOf(namespaceClient))
 	newNamespace := strings.Replace(namesgenerator.GetRandomName(0), "_", "-", -1) + "-wr"
 	//Retry if namespace taken
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -120,6 +124,7 @@ func main() {
 	//Create clientset for deployments that is authenticated against the given cluster. Use default namsespace.
 	deploymentsClient := clientset.AppsV1beta1().Deployments(newNamespace)
 
+	fmt.Println(reflect.TypeOf(deploymentsClient))
 	//Create new wr deployment
 	deployment := &appsv1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -172,6 +177,9 @@ func main() {
 									Name:      "wr-temp",
 									MountPath: "/wr-tmp",
 								},
+							},
+							SecurityContext: &apiv1.SecurityContext{
+								Privileged: boolPtr(true),
 							},
 						},
 					},
@@ -317,3 +325,4 @@ func prompt() {
 }
 
 func int32Ptr(i int32) *int32 { return &i }
+func boolPtr(b bool) *bool    { return &b }
