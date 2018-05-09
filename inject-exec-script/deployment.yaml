@@ -1,0 +1,29 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: ghost
+  labels:
+    role: blog
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        role: blog
+    spec:
+      containers:
+      - name: ghost
+        image: ghost:0.11-alpine
+        command: ["/scripts/wrapper.sh"]
+        ports:
+        - name: ghost
+          containerPort: 2368
+          protocol: TCP
+        volumeMounts:
+        - name: wrapper
+          mountPath: /scripts
+      volumes:
+      - name: wrapper
+        configMap:
+          name: wrapper
+          defaultMode: 0744

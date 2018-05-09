@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: ghost
+  labels:
+    role: blog
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        role: blog
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+            {
+                "name": "init-ghost",
+                "image": "alpine:3.6",
+                "command": ["sh", "-c", "chmod u+x /scripts/..data/wrapper.sh"],
+                "volumeMounts": [{"name": "wrapper", "mountPath": "/scripts"}]
+            }
+        ]'
+    spec:
+      containers:
+      - name: ghost
+        image: ghost:0.11-alpine
+        command: ["/scripts/wrapper.sh"]
+        ports:
+        - name: ghost
+          containerPort: 2368
+          protocol: TCP
+        volumeMounts:
+        - name: wrapper
+          mountPath: /scripts
+      volumes:
+      - name: wrapper
+        configMap:
+          name: wrapper
