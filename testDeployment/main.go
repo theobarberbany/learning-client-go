@@ -23,7 +23,6 @@ func main() {
 	}
 	fmt.Println("Authenticated and Initialised!")
 	fmt.Println("====================")
-	fmt.Printf("\n\n")
 	// Create a ConfigMap
 	_, err = c.Client.NewConfigMap(&client.ConfigMapOpts{
 		Name: "test",
@@ -47,7 +46,7 @@ func main() {
 			{dir + "/wr-linux", "/wr-tmp/"},
 		},
 		BinaryPath:      "/wr-tmp/wr-linux",
-		BinaryArgs:      []string{"manager", "start"},
+		BinaryArgs:      []string{"manager", "start", "-f"},
 		ConfigMapName:   "test",
 		ConfigMountPath: "/scripts",
 		RequiredPorts:   []int{1120, 1121},
