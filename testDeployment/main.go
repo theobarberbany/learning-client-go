@@ -24,6 +24,7 @@ var err error
 var stopCh chan struct{}
 
 func StartController(binaryPath string, scriptPath string, stopCh chan struct{}) {
+	log.Printf("controller started with binary path %s and script path %s", binaryPath, scriptPath)
 	// Always authenticate the client lib with cluster
 	c := deployment.Controller{
 		Client: &client.Kubernetesp{},
@@ -62,7 +63,7 @@ func StartController(binaryPath string, scriptPath string, stopCh chan struct{})
 		},
 		BinaryPath:      "/scripts/" + scriptName,
 		BinaryArgs:      []string{"/wr-tmp/wr-linux", "manager", "start", "-f"},
-		ConfigMapName:   "test",
+		ConfigMapName:   configMapName,
 		ConfigMountPath: "/scripts",
 		RequiredPorts:   []int{1120, 1121},
 	}
